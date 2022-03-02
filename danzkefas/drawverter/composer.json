@@ -1,0 +1,28 @@
+{
+    "name": "danzkefas/drawverter",
+    "description": "Convert Draw.io XML to Laravel Migration",
+    "type": "library",
+    "require": {
+        "php": "^7.4"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "titanoberon",
+            "email": "6181801001@student.unpar.ac.id"
+        }
+    ],
+    "minimum-stability": "dev",
+    "autoload": {
+        "psr-4": {
+            "Danzkefas\\Drawverter\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Danzkefas\\Drawverter\\Providers\\DrawverterServiceProvider"
+            ]
+        }
+    }
+}
