@@ -68,7 +68,7 @@ class Convert
         }
         $notation = '';
         if($counter > 0){
-            $notation = 'crows';
+            $notation = 'crow';
         } else {
             $notation = 'chen';
         }
