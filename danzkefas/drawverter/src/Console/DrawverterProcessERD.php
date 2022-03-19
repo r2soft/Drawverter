@@ -20,6 +20,7 @@ class DrawverterProcessERD extends Command
 
         if($this->confirm('Are you sure want to Continue?')){
             $obj = new Drawverter;
+            // $res = $obj->start($fileName);
             try{
                 $res = $obj->start($fileName);
                 if ($res == true){

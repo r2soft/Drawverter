@@ -21,6 +21,7 @@ class Drawverter
         if ($this->CountPage($decode['diagram']) == 1){
             $diagram = new Convert($decode, "single");
             $diagram->convertRawInput();
+            // return response()->json($diagram->convertRawInput());
         } else {
             foreach($decode['diagram'] as $one){
                 $diagram = new Convert($one, "multi");
