@@ -168,7 +168,12 @@ class MigrationWriter
                                     $foreign = $k;
                                     $reference = $k;
                                     $relateOn = strtolower(trim($k, "_id"));
-                                    $relation[] = array($relateOn, $reference, $foreign);
+                                    foreach($relationID as $l){
+                                        if(strcasecmp($l[0], $relateOn)){
+                                            $relation[] = array($relateOn, $reference, $foreign);
+                                            break;
+                                        }
+                                    }
                                 }
                             }
                             $j->set_relation($relation);
