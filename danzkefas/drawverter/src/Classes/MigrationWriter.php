@@ -24,33 +24,35 @@ class MigrationWriter
             $arr = $this->ReadFromArrayCrow();
         }
         $this->WriteMigration($arr);
-        return true;
     }
 
     public function ReadFromArrayCrow()
     {
         // Menambahkan nama dan atribut dari entitas
         foreach ($this->raw['entity'] as $entity) {
-            $entityName = $entity['value'];
+            $entityName = strtolower($entity['value']);
             $entityAttr = [];
             foreach ($entity['attributes'] as $attr) {
-                $entityAttr[] = $attr['value'];
+                $entityAttr[] = strtolower($attr['value']);
             }
             //Menentukan relasi
             foreach($this->raw['line'] as $line){
                 $relation = [];
                 $src = $line['source'];
                 $trg = $line['target'];
+                $relateOn = "";
+                $reference = "";
+                $foreign = "";
                 foreach($this->raw['entity'] as $e){
                     foreach($e['attributes'] as $a){
                         if($a['id'] == $src){
-                            $relateOn = $e['value'];
-                            $reference = $a['value'];
+                            $relateOn = strtolower($e['value']);
+                            $reference = strtolower($a['value']);
                         }elseif ($a['id'] == $trg){
-                            $foreign = $a['value'];
+                            $foreign = strtolower($a['value']);
                         }
                     }
-                    if($relateOn != $e['value']){
+                    if(strcasecmp($relateOn, $e['value'])){
                         $relation[] = array($relateOn, $reference, $foreign);
                     }
                 }
@@ -72,7 +74,7 @@ class MigrationWriter
         $res = [];
         foreach ($this->raw as $obj) {
             if ($obj['type'] == "Entity" or $obj['type'] == "WeakEntity") {
-                $entityName = $obj['value'];
+                $entityName = strtolower($obj['value']);
                 $entityAttr = [];
                 //Mencari ID dari Entitas
                 foreach ($this->raw as $obj2) {
@@ -90,9 +92,9 @@ class MigrationWriter
                                     $cleanName = preg_replace('/\s+/', '', $obj3['value']);
                                     $cleanName = trim($cleanName, '<spanstyle="border-bottom:1px dotted">');
                                     $cleanName = trim($cleanName, '</span>');
-                                    $entityAttr[] = $cleanName;
+                                    $entityAttr[] = strtolower($cleanName);
                                 } else {
-                                    $entityAttr[] = $obj3['value'];
+                                    $entityAttr[] = strtolower($obj3['value']);
                                 }
                                 break;
                             }
@@ -108,75 +110,82 @@ class MigrationWriter
                 $targetSrc = $relObj['id'];
                 $relationID = [];
                 foreach($this->raw as $relObj2){
-                    if($relObj2['type'] == "lineRelationship"){
-                        if($relObj2['source'] == $targetSrc){
+                    if($relObj2['type'] == "lineRelationship" and ($relObj2['source'] == $targetSrc or $relObj2['target'] == $targetSrc)){
+                        if ($relObj2['source'] == $targetSrc) {
                             $trg = $relObj2['target'];
-                            foreach($this->raw as $relObj3){
-                                if($relObj3['id'] == $trg){
-                                    $tempName = $relObj3['value'];
-                                    $relationID[] = array($tempName, $relObj2['valueRelation']);
-                                    break;
-                                }
+                        } else {
+                            $trg = $relObj2['source'];
+                        }
+                        foreach($this->raw as $relObj3){
+                            if($relObj3['id'] == $trg){
+                                $tempName = strtolower($relObj3['value']);
+                                $relationID[] = array($tempName, $relObj2['valueRelation']);
+                                break;
                             }
                         }
+                        
                     }
                 }
+                $allRel[] = $relationID;
             }
         }
 
-        $checkType = 0;
-        foreach($relationID as $i){
-            if($i[1] ==  "1"){
-                $checkType = 1;
-                break;
-            }
-        }
-        //Relasi M..N
-        if($checkType == 0){
-            $relationName = "";
-            $entityAttr = [];
-            $relation = [];
-            $reference = "";
-            $foreign = "";
-            foreach($res as $i){
-                $relationName .= $i->get_name();
-                $relateOn = $i->get_name();
-                $loopAttr = $i->get_attribute();
-                foreach($loopAttr as $j){
-                    if(strpos($j, "_id") !== False and strpos($j, "<u>") !== False){
-                        $entityAttr[] = $j;
-                        $foreign = trim($j, "</u>");
-                        $reference = $j;
-                    }
+        //Memnentukan Relasi
+        foreach($allRel as $relID){
+            $checkType = 0;
+            foreach($relID as $i){
+                if($i[1] ==  "1"){
+                    $checkType = 1;
+                    break;
                 }
-                $relation[] = array($relateOn, $reference, $foreign);
             }
-            $res[] = new Entity($relationName, $entityAttr, $relation);
-        } else {
-            //Relasi 1..N 
-            foreach($relationID as $i){
-                $foreign = "";
-                $reference = "";
-                $relateOn = "";
+
+            if($checkType == 0){
+                $relationName = "";
+                $entityAttr = [];
                 $relation = [];
-                if($i[1] == "N"){
-                    $targetEntity = $i[0];
-                    foreach($res as $j){
-                        if($j->get_name() == $targetEntity){
-                            foreach($j->get_attribute() as $k){
-                                if(strpos($k, "</u>") == False and strpos($k, "_id") !== False){
-                                    $foreign = $k;
-                                    $reference = $k;
-                                    $relateOn = strtolower(trim($k, "_id"));
-                                    foreach($relationID as $l){
-                                        if(strcasecmp($l[0], $relateOn)){
-                                            $relation[] = array($relateOn, $reference, $foreign);
-                                            break;
+                $reference = "";
+                $foreign = "";
+                foreach($res as $i){
+                    $relationName .= $i->get_name();
+                    $relateOn = $i->get_name();
+                    $loopAttr = $i->get_attribute();
+                    foreach($loopAttr as $j){
+                        if(strpos($j, "_id") !== False and strpos($j, "<u>") !== False){
+                            $entityAttr[] = $j;
+                            $foreign = trim($j, "</u>");
+                            $reference = $j;
+                        }
+                    }
+                    $relation[] = array($relateOn, $reference, $foreign);
+                }
+                $res[] = new Entity($relationName, $entityAttr, $relation);
+            } else {
+                //Relasi 1..N 
+                foreach($relID as $i){
+                    $foreign = "";
+                    $reference = "";
+                    $relateOn = "";
+                    $relation = [];
+                    if($i[1] == "N"){
+                        $targetEntity = $i[0];
+                        foreach($res as $j){
+                            if($j->get_name() == $targetEntity){
+                                foreach($j->get_attribute() as $k){
+                                    if(strpos($k, "</u>") == False and strpos($k, "id") !== False){
+                                        $foreign = $k;
+                                        $reference = $k;
+                                        $relateOn = strtolower(trim($k, "_id"));
+                                        foreach($relID as $l){
+                                            if(strcasecmp($l[0], $relateOn)){
+                                                $relation[] = array($relateOn, $reference, $foreign);
+                                                break;
+                                            }
                                         }
                                     }
                                 }
+                                $j->set_relation($relation);
                             }
-                            $j->set_relation($relation);
                         }
                     }
                 }
@@ -277,6 +286,5 @@ class Create{$name}Table extends Migration
             fclose($handle);
         }
         
-        return true;
     }
 }

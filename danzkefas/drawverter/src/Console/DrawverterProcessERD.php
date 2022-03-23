@@ -5,7 +5,7 @@ namespace Danzkefas\Drawverter\Console;
 use Danzkefas\Drawverter\Classes\Drawverter;
 use Exception;
 use Illuminate\Console\Command;
-
+use Symfony\Component\Console\Output\ConsoleOutput;
 
 class DrawverterProcessERD extends Command
 {
@@ -29,7 +29,7 @@ class DrawverterProcessERD extends Command
                     $this->info("404 File Not Found!");
                 }
             } catch (Exception $e) {
-                $this->info("Something went wrong. Please check again.");
+                $this->error("Something went wrong. Please check again!");
             }
         }
     }
