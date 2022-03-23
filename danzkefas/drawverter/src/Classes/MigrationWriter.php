@@ -172,12 +172,22 @@ class MigrationWriter
                         foreach($res as $j){
                             if($j->get_name() == $targetEntity){
                                 foreach($j->get_attribute() as $k){
-                                    if(strpos($k, "</u>") == False and strpos($k, "id") !== False){
+                                    if(strpos($k, "</u>") == False and strpos($k, "_id") !== False){
                                         $foreign = $k;
-                                        $reference = $k;
                                         $relateOn = strtolower(trim($k, "_id"));
                                         foreach($relID as $l){
                                             if(strcasecmp($l[0], $relateOn)){
+                                                foreach($res as $m){
+                                                    if($m->get_name() == $relateOn){
+                                                        foreach ($m->get_attribute() as $n){
+                                                            if(strpos($n, "</u>") !== False){
+                                                                $reference = $n;
+                                                                break;
+                                                            }
+                                                        }
+                                                        break;
+                                                    }
+                                                }
                                                 $relation[] = array($relateOn, $reference, $foreign);
                                                 break;
                                             }
@@ -185,6 +195,7 @@ class MigrationWriter
                                     }
                                 }
                                 $j->set_relation($relation);
+                                break;
                             }
                         }
                     }
