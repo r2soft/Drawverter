@@ -49,7 +49,7 @@ class ChenConvert extends Convert
                             "style" => $d[$attr]['style'],
                             "type" => "Attribute"
                         );
-                    } elseif ($this->matchValueObject($d[$attr]['style'], "shape=rhombus")) {
+                    } elseif ($this->matchValueObject($d[$attr]['style'], "shape=rhombus") or $this->matchValueObject($d[$attr]['style'], "shape=associativeEntity")) {
                         $tempArr[] = array(
                             "id" => $d[$attr]['id'],
                             "value" => $d[$attr]['value'],

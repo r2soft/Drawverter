@@ -10,12 +10,18 @@ class MigrationWriter
     public $raw;
     public $notation;
 
+    /*
+    Method Constructor
+    */
     public function __construct($raw, $notation)
     {
         $this->raw = $raw;
         $this->notation = $notation;
     }
 
+    /*
+    Main Method untuk menjankan kelas ini
+    */
     public function main()
     {
         if ($this->notation == "chen") {
@@ -26,49 +32,62 @@ class MigrationWriter
         $this->WriteMigration($arr);
     }
 
+
+    /*
+    Method untuk membaca Array dengan notasi Crow
+    Mengembalikan kembalian berupa array
+    dengan Objek Entitas
+    */
     public function ReadFromArrayCrow()
     {
         // Menambahkan nama dan atribut dari entitas
         foreach ($this->raw['entity'] as $entity) {
+            //Mencari Nama
             $entityName = strtolower($entity['value']);
             $entityAttr = [];
+            //Mencari Attr
             foreach ($entity['attributes'] as $attr) {
                 $entityAttr[] = strtolower($attr['value']);
             }
+            $res[] = new Entity($entityName, $entityAttr);
             //Menentukan relasi
             foreach($this->raw['line'] as $line){
                 $relation = [];
                 $src = $line['source'];
                 $trg = $line['target'];
-                $relateOn = "";
-                $reference = "";
-                $foreign = "";
                 foreach($this->raw['entity'] as $e){
+                    $tempName = null;
                     foreach($e['attributes'] as $a){
                         if($a['id'] == $src){
                             $relateOn = strtolower($e['value']);
                             $reference = strtolower($a['value']);
                         }elseif ($a['id'] == $trg){
                             $foreign = strtolower($a['value']);
+                            $tempName = $e['value'];
                         }
                     }
-                    if(strcasecmp($relateOn, $e['value'])){
+                    if(strcasecmp($relateOn, $e['value']) != 0){
                         $relation[] = array($relateOn, $reference, $foreign);
+                        foreach($res as $i){
+                            if(strcasecmp($i->get_name(), $tempName) == 0){
+                                $i->set_relation($relation);
+                                break;
+                            }
+                        }
                     }
+                    
                 }
-                
-            }
-
-            if($entityName != $relation[0][0]){
-                $res[] = new Entity($entityName, $entityAttr, $relation);
-            } else {
-                $res[] = new Entity($entityName, $entityAttr);
             }
         }
 
         return $res;
     }
 
+    /*
+    Method untuk membaca Array dengan notasi Chen
+    Mengembalikan kembalian berupa array
+    dengan Objek Entitas
+    */
     public function ReadFromArrayChen()
     {
         $res = [];
@@ -88,6 +107,8 @@ class MigrationWriter
                         //Mencari Atribut dengan entitas yang sesuai
                         foreach ($this->raw as $obj3) {
                             if ($obj3['id'] == $targetID) {
+                                $targetID2 = $obj3['id'];
+                                //Terdapat garis dot yang menunjukan weak key attr
                                 if(strpos($obj3['value'], "dotted") !== False){
                                     $cleanName = preg_replace('/\s+/', '', $obj3['value']);
                                     $cleanName = trim($cleanName, '<spanstyle="border-bottom:1px dotted">');
@@ -95,6 +116,22 @@ class MigrationWriter
                                     $entityAttr[] = strtolower($cleanName);
                                 } else {
                                     $entityAttr[] = strtolower($obj3['value']);
+                                    //Multivalued Finder
+                                    foreach($this->raw as $obj4){
+                                        $temp = null;
+                                        if ($obj4['type'] == "line" and ($obj4['source'] == $targetID2 or $obj4['target'] == $targetID2)){
+                                            if ($obj4['source'] == $targetID2) {
+                                                $temp = $obj4['target'];
+                                            } else {
+                                                $temp = $obj4['source'];
+                                            }
+                                            foreach($this->raw as $obj5){
+                                                if($obj5['id'] == $temp and $obj5['type'] = "Attribute" and strcasecmp($obj5['value'], $entityName) != 0){
+                                                    $entityAttr[] = strtolower($obj5['value']);
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                                 break;
                             }
@@ -105,6 +142,7 @@ class MigrationWriter
             }
         }
 
+        //Menentukan Relasi dari setiap Entitas
         foreach ($this->raw as $relObj){
             if($relObj['type'] == "Relationship"){
                 $targetSrc = $relObj['id'];
@@ -119,7 +157,7 @@ class MigrationWriter
                         foreach($this->raw as $relObj3){
                             if($relObj3['id'] == $trg){
                                 $tempName = strtolower($relObj3['value']);
-                                $relationID[] = array($tempName, $relObj2['valueRelation']);
+                                $relationID[] = array($tempName, strtolower($relObj2['valueRelation']), $relObj['id']);
                                 break;
                             }
                         }
@@ -130,7 +168,7 @@ class MigrationWriter
             }
         }
 
-        //Memnentukan Relasi
+        //Memnentukan Relasi berdasarkan array relasi
         foreach($allRel as $relID){
             $checkType = 0;
             foreach($relID as $i){
@@ -139,27 +177,54 @@ class MigrationWriter
                     break;
                 }
             }
-
+            //Adding some relID check
             if($checkType == 0){
                 $relationName = "";
                 $entityAttr = [];
                 $relation = [];
                 $reference = "";
                 $foreign = "";
-                foreach($res as $i){
-                    $relationName .= $i->get_name();
-                    $relateOn = $i->get_name();
-                    $loopAttr = $i->get_attribute();
-                    foreach($loopAttr as $j){
-                        if(strpos($j, "_id") !== False and strpos($j, "<u>") !== False){
-                            $entityAttr[] = $j;
-                            $foreign = trim($j, "</u>");
-                            $reference = $j;
+                $tempRel = [];
+                $targetRelationship = "";
+
+                foreach($relID as $i){
+                    $tempRel[] = $i[0];
+                    $targetRelationship = $i[2];
+                }
+
+                //Check if Relation have Attribute
+                foreach ($this->raw as $i) {
+                    if ($i['type'] == "line" and ($i['source'] == $targetRelationship or $i['target'] == $targetRelationship)) {
+                        if ($i['source'] == $targetRelationship) {
+                            $trg = $i['target'];
+                        } else {
+                            $trg = $i['source'];
                         }
+                        foreach ($this->raw as $j) {
+                            if ($j['id'] == $trg) {
+                                $entityAttr[] = strtolower($j['value']);
+                            }
+                        }
+
                     }
-                    $relation[] = array($relateOn, $reference, $foreign);
+                }
+
+                foreach($res as $i){
+                    if(in_array($i->get_name(), $tempRel)){
+                        $relationName .= $i->get_name();
+                        $relateOn = $i->get_name();
+                        foreach($i->get_attribute() as $j){
+                            if(strpos($j, "_id") !== False and strpos($j, "<u>") !== False){
+                                $entityAttr[] = $j;
+                                $foreign = trim($j, "</u>");
+                                $reference = $j;
+                            }
+                        }
+                        $relation[] = array($relateOn, $reference, $foreign);
+                    }
                 }
                 $res[] = new Entity($relationName, $entityAttr, $relation);
+
             } else {
                 //Relasi 1..N 
                 foreach($relID as $i){
@@ -167,7 +232,7 @@ class MigrationWriter
                     $reference = "";
                     $relateOn = "";
                     $relation = [];
-                    if($i[1] == "N"){
+                    if($i[1] == "n" or $i[1] == "m"){
                         $targetEntity = $i[0];
                         foreach($res as $j){
                             if($j->get_name() == $targetEntity){
@@ -176,7 +241,7 @@ class MigrationWriter
                                         $foreign = $k;
                                         $relateOn = strtolower(trim($k, "_id"));
                                         foreach($relID as $l){
-                                            if(strcasecmp($l[0], $relateOn)){
+                                            if(strcasecmp($l[0], $relateOn) == 0){
                                                 foreach($res as $m){
                                                     if($m->get_name() == $relateOn){
                                                         foreach ($m->get_attribute() as $n){
@@ -205,6 +270,11 @@ class MigrationWriter
         return $res;
     }
 
+    /*
+    Method untuk menulis array dari objek Entitas yang dibuat
+    Mengembalikan kembalian berupa file migration
+    yang dapat dipakai dengan perintah artisan
+    */
     public function WriteMigration($entityArr)
     {
         $sixDigitCounter = 1;
